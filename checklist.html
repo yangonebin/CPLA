@@ -9,6 +9,8 @@
 
     <p><a href="index.html">메인으로 돌아가기</a></p>
 
+    <p id="authStatus">확인 중...</p>
+
     <hr>
 
     <h2>기출문제 회독 체크리스트</h2>
@@ -427,15 +429,35 @@
 
     <script>
         var checklistData = {};
+        var isLoggedIn = false;
 
-        // 페이지 로드시 서버에서 체크 상태 불러오기
+        // 페이지 로드시 로그인 상태 확인 및 체크 상태 불러오기
         window.onload = function() {
-            fetch('/api/checklist')
+            // 로그인 상태 확인
+            fetch('/api/auth/status')
+                .then(function(response) { return response.json(); })
+                .then(function(authData) {
+                    isLoggedIn = authData.loggedIn;
+
+                    if (isLoggedIn) {
+                        document.getElementById('authStatus').textContent = '로그인됨: ' + authData.username + ' (수정 가능)';
+                    } else {
+                        document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
+                    }
+
+                    // 체크리스트 데이터 불러오기
+                    return fetch('/api/checklist');
+                })
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
                     checklistData = data;
                     var checkboxes = document.querySelectorAll('input[type="checkbox"]');
                     checkboxes.forEach(function(checkbox) {
+                        // 로그인 안 되어 있으면 비활성화
+                        if (!isLoggedIn) {
+                            checkbox.disabled = true;
+                        }
+
                         if (checklistData[checkbox.id] === true) {
                             checkbox.checked = true;
                             var label = document.getElementById('label-' + checkbox.id);
@@ -449,12 +471,26 @@
 
         // 체크 상태 서버에 저장 및 줄긋기
         function saveCheck(checkbox) {
+            if (!isLoggedIn) {
+                alert('로그인이 필요합니다.');
+                checkbox.checked = !checkbox.checked;
+                return;
+            }
+
             checklistData[checkbox.id] = checkbox.checked;
 
             fetch('/api/checklist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(checklistData)
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    alert('저장 실패: 권한이 없습니다.');
+                    checkbox.checked = !checkbox.checked;
+                    return;
+                }
+                return response.json();
             });
 
             var label = document.getElementById('label-' + checkbox.id);

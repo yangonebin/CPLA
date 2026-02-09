@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>로그인 - 노무사 학습 플래너</title>
+</head>
+<body>
+    <h1>로그인</h1>
+
+    <p><a href="index.html">메인으로 돌아가기</a></p>
+
+    <hr>
+
+    <form id="loginForm">
+        <p>
+            <label>아이디: </label>
+            <input type="text" id="username" name="username" required>
+        </p>
+        <p>
+            <button type="submit">로그인</button>
+        </p>
+    </form>
+
+    <p id="message"></p>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    document.getElementById('message').textContent = '로그인 성공!';
+                    setTimeout(function() {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    document.getElementById('message').textContent = '로그인 실패: ' + data.message;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

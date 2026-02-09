@@ -1,11 +1,19 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+const session = require('express-session');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+    secret: 'nomusa-secret-key-2025',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24시간
+}));
 app.use(express.static('.'));
 
 // SQLite 데이터베이스 초기화
@@ -36,8 +44,38 @@ app.get('/api/checklist', (req, res) => {
     });
 });
 
-// 체크리스트 데이터 저장하기
+// 로그인 상태 확인
+app.get('/api/auth/status', (req, res) => {
+    res.json({
+        loggedIn: req.session.user === 'yangonebin',
+        username: req.session.user || null
+    });
+});
+
+// 로그인
+app.post('/api/auth/login', (req, res) => {
+    const { username } = req.body;
+
+    if (username === 'yangonebin') {
+        req.session.user = username;
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, message: '로그인 실패' });
+    }
+});
+
+// 로그아웃
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+// 체크리스트 데이터 저장하기 (로그인 필요)
 app.post('/api/checklist', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '권한 없음' });
+    }
+
     const data = req.body;
 
     db.serialize(() => {
