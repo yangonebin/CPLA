@@ -433,8 +433,29 @@
         var checklistData = {};
         var isLoggedIn = false;
 
+        // 라벨을 링크로 변환
+        function convertLabelsToLinks() {
+            var labels = document.querySelectorAll('label[id^="label-"]');
+            labels.forEach(function(label) {
+                var text = label.textContent;
+                var checkboxId = label.getAttribute('for');
+
+                var link = document.createElement('a');
+                link.href = 'detail.html?id=' + checkboxId + '&title=' + encodeURIComponent(text);
+                link.textContent = text;
+                link.style.textDecoration = 'none';
+                link.style.color = 'inherit';
+
+                label.textContent = '';
+                label.appendChild(link);
+            });
+        }
+
         // 페이지 로드시 로그인 상태 확인 및 체크 상태 불러오기
         window.onload = function() {
+            // 라벨을 링크로 변환
+            convertLabelsToLinks();
+
             // 로그인 상태 확인
             fetch('/api/auth/status')
                 .then(function(response) { return response.json(); })

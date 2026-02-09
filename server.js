@@ -26,6 +26,10 @@ const db = new sqlite3.Database('./checklist.db', (err) => {
             id TEXT PRIMARY KEY,
             checked INTEGER
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS keywords (
+            exam_id TEXT PRIMARY KEY,
+            keywords TEXT
+        )`);
     }
 });
 
@@ -86,6 +90,40 @@ app.post('/api/checklist', (req, res) => {
         stmt.finalize();
         res.json({ success: true });
     });
+});
+
+// 키워드 불러오기
+app.get('/api/keywords/:examId', (req, res) => {
+    const examId = req.params.examId;
+
+    db.get('SELECT keywords FROM keywords WHERE exam_id = ?', [examId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ keywords: row ? row.keywords : '' });
+    });
+});
+
+// 키워드 저장 (로그인 필요)
+app.post('/api/keywords/:examId', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '권한 없음' });
+    }
+
+    const examId = req.params.examId;
+    const keywords = req.body.keywords;
+
+    db.run('INSERT OR REPLACE INTO keywords (exam_id, keywords) VALUES (?, ?)',
+        [examId, keywords],
+        (err) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ success: true });
+        }
+    );
 });
 
 app.listen(PORT, () => {

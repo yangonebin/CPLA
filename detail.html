@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>키워드 분석 - 노무사 학습 플래너</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+</head>
+<body>
+    <div style="position: absolute; top: 10px; right: 10px;">
+        <span id="authStatus">확인 중...</span>
+    </div>
+
+    <h1 id="examTitle">키워드 분석</h1>
+
+    <p><a href="checklist.html">체크리스트로 돌아가기</a></p>
+
+    <hr>
+
+    <h2>키워드 입력</h2>
+    <p>시험 문제를 보면서 자주 나오는 단어를 입력하세요. (한 줄에 하나씩)</p>
+
+    <textarea id="keywordInput" rows="10" cols="50" placeholder="예:&#10;근로기준법&#10;임금&#10;퇴직금&#10;휴가"></textarea>
+    <br>
+    <button id="generateBtn">워드 클라우드 생성</button>
+    <button id="saveBtn">저장</button>
+    <button id="clearBtn">초기화</button>
+
+    <hr>
+
+    <h2>워드 클라우드</h2>
+    <canvas id="wordcloud" width="1000" height="800" style="border: 1px solid #ccc; width: 100%; max-width: 1000px;"></canvas>
+
+    <script>
+        var examId = '';
+        var isLoggedIn = false;
+
+        // URL 파라미터에서 시험 정보 가져오기
+        var params = new URLSearchParams(window.location.search);
+        examId = params.get('id') || '';
+        var title = params.get('title') || '키워드 분석';
+        document.getElementById('examTitle').textContent = title + ' - 키워드 분석';
+
+        // 로그인 상태 확인
+        fetch('/api/auth/status')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                isLoggedIn = data.loggedIn;
+                if (isLoggedIn) {
+                    document.getElementById('authStatus').textContent = '로그인됨: ' + data.username;
+                } else {
+                    document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
+                    document.getElementById('saveBtn').disabled = true;
+                }
+            });
+
+        // 저장된 키워드 불러오기
+        fetch('/api/keywords/' + examId)
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.keywords) {
+                    document.getElementById('keywordInput').value = data.keywords;
+                }
+            });
+
+        // 워드 클라우드 생성
+        document.getElementById('generateBtn').addEventListener('click', function() {
+            var text = document.getElementById('keywordInput').value;
+            if (!text.trim()) {
+                alert('키워드를 입력하세요.');
+                return;
+            }
+
+            var lines = text.split('\n').filter(function(line) { return line.trim(); });
+            var wordCount = {};
+
+            lines.forEach(function(line) {
+                var word = line.trim();
+                if (word) {
+                    wordCount[word] = (wordCount[word] || 0) + 1;
+                }
+            });
+
+            var list = [];
+            for (var word in wordCount) {
+                list.push([word, wordCount[word] * 10]);
+            }
+
+            if (list.length === 0) {
+                alert('유효한 키워드가 없습니다.');
+                return;
+            }
+
+            var canvas = document.getElementById('wordcloud');
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            WordCloud(canvas, {
+                list: list,
+                gridSize: 8,
+                weightFactor: function(size) {
+                    return Math.pow(size, 1.5) * 0.5;
+                },
+                fontFamily: 'Arial, sans-serif',
+                color: 'random-dark',
+                rotateRatio: 0.3,
+                rotationSteps: 2,
+                backgroundColor: '#fff',
+                minSize: 10,
+                drawOutOfBound: false,
+                shrinkToFit: true
+            });
+        });
+
+        // 저장
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            if (!isLoggedIn) {
+                alert('로그인이 필요합니다.');
+                return;
+            }
+
+            var keywords = document.getElementById('keywordInput').value;
+
+            fetch('/api/keywords/' + examId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keywords: keywords })
+            })
+            .then(function(response) {
+                if (response.ok) {
+                    alert('저장되었습니다.');
+                } else {
+                    alert('저장 실패');
+                }
+            });
+        });
+
+        // 초기화
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            if (confirm('입력한 키워드를 모두 지우시겠습니까?')) {
+                document.getElementById('keywordInput').value = '';
+                var canvas = document.getElementById('wordcloud');
+                var ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+    </script>
+</body>
+</html>
