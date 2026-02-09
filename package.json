@@ -1,0 +1,16 @@
+{
+  "name": "nomusa-planner",
+  "version": "1.0.0",
+  "description": "노무사 학습 플래너",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

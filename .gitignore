@@ -1,0 +1,4 @@
+node_modules/
+checklist.db
+checklist-data.json
+*.log

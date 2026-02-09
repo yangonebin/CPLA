@@ -1,0 +1,51 @@
+노무사 학습 플래너 - Railway 배포 방법 (무료, 24시간 돌아감)
+
+=== 1단계: Git 저장소 만들기 ===
+
+1. GitHub 계정 만들기 (https://github.com)
+
+2. 이 폴더를 Git 저장소로 만들기:
+   git init
+   git add .
+   git commit -m "노무사 플래너 첫 커밋"
+
+3. GitHub에 새 저장소 만들고 push:
+   (GitHub에서 'New repository' 클릭 후)
+   git remote add origin https://github.com/YOUR_USERNAME/nomusa-planner.git
+   git push -u origin main
+
+
+=== 2단계: Railway 배포 ===
+
+1. Railway 가입 (https://railway.app)
+   - GitHub 계정으로 로그인
+
+2. "New Project" 클릭
+
+3. "Deploy from GitHub repo" 선택
+
+4. 방금 만든 저장소 선택
+
+5. 자동 배포 완료!
+
+6. Settings에서 도메인 생성:
+   - "Generate Domain" 클릭
+   - 예: nomusa-planner.up.railway.app
+
+
+=== 결과 ===
+
+배포된 주소 (예시): https://nomusa-planner.up.railway.app
+- 24시간 돌아감
+- 어디서든 접속 가능
+- 데이터 자동 저장
+
+
+=== 대안: Render 배포 (Railway 대신) ===
+
+1. Render 가입 (https://render.com)
+2. "New Web Service" 클릭
+3. GitHub 저장소 연결
+4. 배포 완료
+
+둘 다 무료 티어 제공!
