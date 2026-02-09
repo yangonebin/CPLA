@@ -433,8 +433,37 @@
         var checklistData = {};
         var isLoggedIn = false;
 
+        // PDF 링크 자동 생성
+        function createPdfLinks() {
+            var labels = document.querySelectorAll('label[id^="label-"]');
+            labels.forEach(function(label) {
+                var text = label.textContent;
+                var match = text.match(/(\d{4})년도 제(\d+)회.*?(\d)교시/);
+
+                if (match) {
+                    var year = match[1];
+                    var round = match[2];
+                    var session = match[3];
+                    var pdfPath = '/pdfs/' + year + '_' + round + '_' + session + '.pdf';
+
+                    var link = document.createElement('a');
+                    link.href = pdfPath;
+                    link.download = text;
+                    link.textContent = text;
+                    link.style.textDecoration = 'none';
+                    link.style.color = 'inherit';
+
+                    label.textContent = '';
+                    label.appendChild(link);
+                }
+            });
+        }
+
         // 페이지 로드시 로그인 상태 확인 및 체크 상태 불러오기
         window.onload = function() {
+            // PDF 링크 생성
+            createPdfLinks();
+
             // 로그인 상태 확인
             fetch('/api/auth/status')
                 .then(function(response) { return response.json(); })
