@@ -6,8 +6,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
 </head>
 <body>
-    <div style="position: absolute; top: 10px; right: 10px;">
-        <span id="authStatus">확인 중...</span>
+    <div style="position: absolute; top: 10px; right: 10px; text-align: right;">
+        <div><span id="authStatus">확인 중...</span></div>
+        <div>
+            <a href="login.html" id="loginLink">로그인</a>
+            <button id="logoutBtn" style="display:none;">로그아웃</button>
+        </div>
     </div>
 
     <h1 id="examTitle">키워드 분석</h1>
@@ -47,11 +51,24 @@
                 isLoggedIn = data.loggedIn;
                 if (isLoggedIn) {
                     document.getElementById('authStatus').textContent = '로그인됨: ' + data.username;
+                    document.getElementById('loginLink').style.display = 'none';
+                    document.getElementById('logoutBtn').style.display = 'inline';
                 } else {
                     document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
                     document.getElementById('saveBtn').disabled = true;
                 }
             });
+
+        // 로그아웃
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            fetch('/api/auth/logout', { method: 'POST' })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        location.reload();
+                    }
+                });
+        });
 
         // 저장된 키워드 불러오기
         fetch('/api/keywords/' + examId)

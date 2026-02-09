@@ -5,8 +5,12 @@
     <title>노무사 시험 학습 플래너</title>
 </head>
 <body>
-    <div style="position: absolute; top: 10px; right: 10px;">
-        <span id="authStatus">확인 중...</span>
+    <div style="position: absolute; top: 10px; right: 10px; text-align: right;">
+        <div><span id="authStatus">확인 중...</span></div>
+        <div>
+            <a href="login.html" id="loginLink">로그인</a>
+            <button id="logoutBtn" style="display:none;">로그아웃</button>
+        </div>
     </div>
 
     <h1>노무사 시험 학습 플래너</h1>
@@ -464,6 +468,8 @@
 
                     if (isLoggedIn) {
                         document.getElementById('authStatus').textContent = '로그인됨: ' + authData.username + ' (수정 가능)';
+                        document.getElementById('loginLink').style.display = 'none';
+                        document.getElementById('logoutBtn').style.display = 'inline';
                     } else {
                         document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
                     }
@@ -490,6 +496,17 @@
                         }
                     });
                 });
+
+            // 로그아웃
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                fetch('/api/auth/logout', { method: 'POST' })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            location.reload();
+                        }
+                    });
+            });
         };
 
         // 체크 상태 서버에 저장 및 줄긋기
