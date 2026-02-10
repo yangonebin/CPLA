@@ -99,13 +99,28 @@ app.get('/api/keywords/:examId', (req, res) => {
     const examId = req.params.examId;
     const subject = req.query.subject || '전체';
 
-    db.get('SELECT keywords FROM keywords WHERE exam_id = ? AND subject = ?', [examId, subject], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ keywords: row ? row.keywords : '' });
-    });
+    if (subject === '전체') {
+        // "전체" 선택 시: 해당 시험의 모든 과목 데이터를 통합
+        db.all('SELECT keywords FROM keywords WHERE exam_id = ? AND subject != ?', [examId, '전체'], (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+
+            // 모든 과목의 키워드를 합침
+            const allKeywords = rows.map(row => row.keywords).filter(k => k).join('\n');
+            res.json({ keywords: allKeywords, isAggregated: true });
+        });
+    } else {
+        // 특정 과목 선택 시
+        db.get('SELECT keywords FROM keywords WHERE exam_id = ? AND subject = ?', [examId, subject], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ keywords: row ? row.keywords : '', isAggregated: false });
+        });
+    }
 });
 
 // 키워드 저장 (로그인 필요)
@@ -137,6 +152,8 @@ app.get('/api/keywords/multi-year', (req, res) => {
     const years = parseInt(req.query.years) || 3;
     const baseYear = parseInt(req.query.baseYear); // 기준 연도
 
+    console.log('🔍 다개년 조회 요청:', { examType, subject, years, baseYear });
+
     if (!baseYear) {
         return res.status(400).json({ error: 'baseYear is required' });
     }
@@ -151,20 +168,43 @@ app.get('/api/keywords/multi-year', (req, res) => {
         examIds.push(`${year}-${examType}`);
     }
 
+    console.log('📅 검색할 시험:', examIds);
+
     // SQL 쿼리 생성
     const placeholders = examIds.map(() => '?').join(',');
-    const query = `
-        SELECT exam_id, keywords
-        FROM keywords
-        WHERE exam_id IN (${placeholders})
-        AND subject = ?
-    `;
+    let query, queryParams;
 
-    db.all(query, [...examIds, subject], (err, rows) => {
+    if (subject === '전체') {
+        // "전체" 선택 시: 모든 과목 통합 (단, "전체"라는 이름의 과목 제외)
+        query = `
+            SELECT exam_id, subject, keywords
+            FROM keywords
+            WHERE exam_id IN (${placeholders})
+            AND subject != ?
+        `;
+        queryParams = [...examIds, '전체'];
+    } else {
+        // 특정 과목 선택 시
+        query = `
+            SELECT exam_id, keywords
+            FROM keywords
+            WHERE exam_id IN (${placeholders})
+            AND subject = ?
+        `;
+        queryParams = [...examIds, subject];
+    }
+
+    db.all(query, queryParams, (err, rows) => {
         if (err) {
+            console.error('❌ DB 조회 실패:', err);
             res.status(500).json({ error: err.message });
             return;
         }
+
+        console.log(`📦 DB에서 찾은 데이터: ${rows.length}개`);
+        rows.forEach(row => {
+            console.log(`  - ${row.exam_id} (${subject}): ${row.keywords ? row.keywords.split('\n').filter(k => k.trim()).length : 0}개 키워드`);
+        });
 
         // 통합 키워드 데이터 생성
         const mergedData = {};
@@ -183,6 +223,8 @@ app.get('/api/keywords/multi-year', (req, res) => {
                 });
             }
         });
+
+        console.log(`✅ 통합 완료: 총 ${Object.keys(mergedData).length}개 고유 키워드`);
 
         res.json({
             examIds: examIds,

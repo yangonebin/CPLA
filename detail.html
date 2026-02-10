@@ -108,6 +108,15 @@
         function onSubjectChange() {
             currentSubject = document.getElementById('subjectSelect').value;
 
+            // "전체" 선택 시 저장 버튼 비활성화
+            if (currentSubject === '전체' && currentViewMode === 'single') {
+                document.getElementById('saveBtn').disabled = true;
+                document.getElementById('keywordInput').placeholder = '📊 모든 과목의 키워드가 통합되어 표시됩니다. (읽기 전용)';
+            } else if (currentViewMode === 'single') {
+                document.getElementById('saveBtn').disabled = !isLoggedIn;
+                document.getElementById('keywordInput').placeholder = '예:\n근로기준법\n임금\n퇴직금\n휴가';
+            }
+
             if (currentViewMode === 'single') {
                 loadKeywords(currentSubject);
             } else {
@@ -135,9 +144,13 @@
             var examType = parts[1]; // '1st' or '2nd'
             var years = currentViewMode === '3years' ? 3 : 5;
 
-            fetch('/api/keywords/multi-year?examType=' + examType + '&subject=' + encodeURIComponent(currentSubject) + '&years=' + years + '&baseYear=' + baseYear)
+            var url = '/api/keywords/multi-year?examType=' + examType + '&subject=' + encodeURIComponent(currentSubject) + '&years=' + years + '&baseYear=' + baseYear;
+            console.log('🔍 다개년 API 호출:', url);
+
+            fetch(url)
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
+                    console.log('📦 받은 데이터:', data);
                     multiYearData = data;
 
                     // 통합 정보 표시
@@ -156,6 +169,10 @@
 
                     document.getElementById('keywordInput').value = keywordText;
                     document.getElementById('totalKeywordCount').textContent = keywordList.length;
+
+                    if (keywordList.length === 0) {
+                        console.log('⚠️ 통합할 키워드가 없습니다. examIds:', data.examIds);
+                    }
                 });
         }
 
