@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.q-net.or.kr)"
+      "WebFetch(domain:www.q-net.or.kr)",
+      "Bash(find:*)",
+      "Bash(tldr extract:*)",
+      "Bash(sqlite3:*)",
+      "Bash(node:*)"
     ]
   }
 }

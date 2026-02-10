@@ -21,6 +21,27 @@
     <hr>
 
     <h2>키워드 입력</h2>
+
+    <div>
+        <label for="viewModeSelect">조회 모드: </label>
+        <select id="viewModeSelect">
+            <option value="single">단일 연도</option>
+            <option value="3years">최근 3개년 통합</option>
+            <option value="5years">최근 5개년 통합</option>
+        </select>
+        &nbsp;&nbsp;
+        <label for="subjectSelect">과목 선택: </label>
+        <select id="subjectSelect">
+            <option value="전체">전체</option>
+        </select>
+    </div>
+    <br>
+
+    <div id="multiYearInfo" style="display:none; background-color: #e8f4f8; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <strong>📊 통합 정보:</strong> <span id="yearRangeText"></span> |
+        <strong>총 키워드 수:</strong> <span id="totalKeywordCount">0</span>
+    </div>
+
     <p>시험 문제를 보면서 자주 나오는 단어를 입력하세요. (한 줄에 하나씩)</p>
 
     <textarea id="keywordInput" rows="10" cols="50" placeholder="예:&#10;근로기준법&#10;임금&#10;퇴직금&#10;휴가"></textarea>
@@ -37,12 +58,108 @@
     <script>
         var examId = '';
         var isLoggedIn = false;
+        var currentSubject = '전체';
+        var currentViewMode = 'single';
+        var multiYearData = null;
 
         // URL 파라미터에서 시험 정보 가져오기
         var params = new URLSearchParams(window.location.search);
         examId = params.get('id') || '';
         var title = params.get('title') || '키워드 분석';
         document.getElementById('examTitle').textContent = title + ' - 키워드 분석';
+
+        // 과목 옵션 설정
+        function setupSubjectOptions() {
+            var subjectSelect = document.getElementById('subjectSelect');
+            subjectSelect.innerHTML = '<option value="전체">전체</option>';
+
+            if (examId.endsWith('-1st')) {
+                // 1교시: 노동법1, 노동법2
+                subjectSelect.innerHTML += '<option value="노동법1">노동법1</option>';
+                subjectSelect.innerHTML += '<option value="노동법2">노동법2</option>';
+            } else if (examId.endsWith('-2nd')) {
+                // 2교시: 민법, 사회보험법, 경영학
+                subjectSelect.innerHTML += '<option value="민법">민법</option>';
+                subjectSelect.innerHTML += '<option value="사회보험법">사회보험법</option>';
+                subjectSelect.innerHTML += '<option value="경영학">경영학</option>';
+            }
+        }
+
+        // 조회 모드 변경
+        function onViewModeChange() {
+            currentViewMode = document.getElementById('viewModeSelect').value;
+
+            if (currentViewMode === 'single') {
+                // 단일 연도 모드
+                document.getElementById('multiYearInfo').style.display = 'none';
+                document.getElementById('keywordInput').disabled = false;
+                document.getElementById('saveBtn').disabled = !isLoggedIn;
+                loadKeywords(currentSubject);
+            } else {
+                // 다개년 모드
+                document.getElementById('multiYearInfo').style.display = 'block';
+                document.getElementById('keywordInput').disabled = true;
+                document.getElementById('saveBtn').disabled = true;
+                loadMultiYearKeywords();
+            }
+        }
+
+        // 과목 변경 시 키워드 불러오기
+        function onSubjectChange() {
+            currentSubject = document.getElementById('subjectSelect').value;
+
+            if (currentViewMode === 'single') {
+                loadKeywords(currentSubject);
+            } else {
+                loadMultiYearKeywords();
+            }
+        }
+
+        // 단일 연도 키워드 불러오기
+        function loadKeywords(subject) {
+            fetch('/api/keywords/' + examId + '?subject=' + encodeURIComponent(subject))
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.keywords) {
+                        document.getElementById('keywordInput').value = data.keywords;
+                    } else {
+                        document.getElementById('keywordInput').value = '';
+                    }
+                });
+        }
+
+        // 다개년 키워드 불러오기
+        function loadMultiYearKeywords() {
+            var parts = examId.split('-'); // ['2020', '1st']
+            var baseYear = parseInt(parts[0]); // 2020
+            var examType = parts[1]; // '1st' or '2nd'
+            var years = currentViewMode === '3years' ? 3 : 5;
+
+            fetch('/api/keywords/multi-year?examType=' + examType + '&subject=' + encodeURIComponent(currentSubject) + '&years=' + years + '&baseYear=' + baseYear)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    multiYearData = data;
+
+                    // 통합 정보 표시
+                    document.getElementById('yearRangeText').textContent = data.yearRange + ' (' + data.subject + ')';
+
+                    // 통합 키워드를 텍스트로 표시 (빈도순 정렬)
+                    var keywordList = [];
+                    for (var word in data.mergedKeywords) {
+                        keywordList.push({ word: word, count: data.mergedKeywords[word] });
+                    }
+                    keywordList.sort(function(a, b) { return b.count - a.count; });
+
+                    var keywordText = keywordList.map(function(item) {
+                        return item.word + ' (' + item.count + '회)';
+                    }).join('\n');
+
+                    document.getElementById('keywordInput').value = keywordText;
+                    document.getElementById('totalKeywordCount').textContent = keywordList.length;
+                });
+        }
+
+        setupSubjectOptions();
 
         // 로그인 상태 확인
         fetch('/api/auth/status')
@@ -70,36 +187,50 @@
                 });
         });
 
-        // 저장된 키워드 불러오기
-        fetch('/api/keywords/' + examId)
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.keywords) {
-                    document.getElementById('keywordInput').value = data.keywords;
-                }
-            });
+        // 조회 모드 선택 이벤트 리스너
+        document.getElementById('viewModeSelect').addEventListener('change', onViewModeChange);
+
+        // 과목 선택 이벤트 리스너
+        document.getElementById('subjectSelect').addEventListener('change', onSubjectChange);
+
+        // 초기 키워드 불러오기
+        loadKeywords(currentSubject);
 
         // 워드 클라우드 생성
         document.getElementById('generateBtn').addEventListener('click', function() {
-            var text = document.getElementById('keywordInput').value;
-            if (!text.trim()) {
-                alert('키워드를 입력하세요.');
-                return;
-            }
-
-            var lines = text.split('\n').filter(function(line) { return line.trim(); });
-            var wordCount = {};
-
-            lines.forEach(function(line) {
-                var word = line.trim();
-                if (word) {
-                    wordCount[word] = (wordCount[word] || 0) + 1;
-                }
-            });
-
             var list = [];
-            for (var word in wordCount) {
-                list.push([word, wordCount[word] * 10]);
+
+            if (currentViewMode === 'single') {
+                // 단일 연도 모드
+                var text = document.getElementById('keywordInput').value;
+                if (!text.trim()) {
+                    alert('키워드를 입력하세요.');
+                    return;
+                }
+
+                var lines = text.split('\n').filter(function(line) { return line.trim(); });
+                var wordCount = {};
+
+                lines.forEach(function(line) {
+                    var word = line.trim();
+                    if (word) {
+                        wordCount[word] = (wordCount[word] || 0) + 1;
+                    }
+                });
+
+                for (var word in wordCount) {
+                    list.push([word, wordCount[word] * 10]);
+                }
+            } else {
+                // 다개년 모드
+                if (!multiYearData || Object.keys(multiYearData.mergedKeywords).length === 0) {
+                    alert('통합할 키워드가 없습니다.');
+                    return;
+                }
+
+                for (var word in multiYearData.mergedKeywords) {
+                    list.push([word, multiYearData.mergedKeywords[word] * 10]);
+                }
             }
 
             if (list.length === 0) {
@@ -136,11 +267,12 @@
             }
 
             var keywords = document.getElementById('keywordInput').value;
+            var subject = document.getElementById('subjectSelect').value;
 
             fetch('/api/keywords/' + examId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keywords: keywords })
+                body: JSON.stringify({ keywords: keywords, subject: subject })
             })
             .then(function(response) {
                 if (response.ok) {
