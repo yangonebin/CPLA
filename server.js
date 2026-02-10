@@ -2,9 +2,18 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Railway Volume 사용 (영구 저장)
+// Railway에서 Volume을 /data로 마운트하는 경우
+const DB_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'checklist.db')
+    : './checklist.db';
+
+console.log('📁 데이터베이스 경로:', DB_PATH);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -17,7 +26,7 @@ app.use(session({
 app.use(express.static('.'));
 
 // SQLite 데이터베이스 초기화
-const db = new sqlite3.Database('./checklist.db', (err) => {
+const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
         console.error('DB 연결 실패:', err);
     } else {
@@ -94,58 +103,7 @@ app.post('/api/checklist', (req, res) => {
     });
 });
 
-// 키워드 불러오기
-app.get('/api/keywords/:examId', (req, res) => {
-    const examId = req.params.examId;
-    const subject = req.query.subject || '전체';
-
-    if (subject === '전체') {
-        // "전체" 선택 시: 해당 시험의 모든 과목 데이터를 통합
-        db.all('SELECT keywords FROM keywords WHERE exam_id = ? AND subject != ?', [examId, '전체'], (err, rows) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-
-            // 모든 과목의 키워드를 합침
-            const allKeywords = rows.map(row => row.keywords).filter(k => k).join('\n');
-            res.json({ keywords: allKeywords, isAggregated: true });
-        });
-    } else {
-        // 특정 과목 선택 시
-        db.get('SELECT keywords FROM keywords WHERE exam_id = ? AND subject = ?', [examId, subject], (err, row) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ keywords: row ? row.keywords : '', isAggregated: false });
-        });
-    }
-});
-
-// 키워드 저장 (로그인 필요)
-app.post('/api/keywords/:examId', (req, res) => {
-    if (req.session.user !== 'yangonebin') {
-        return res.status(403).json({ success: false, message: '권한 없음' });
-    }
-
-    const examId = req.params.examId;
-    const subject = req.body.subject || '전체';
-    const keywords = req.body.keywords;
-
-    db.run('INSERT OR REPLACE INTO keywords (exam_id, subject, keywords) VALUES (?, ?, ?)',
-        [examId, subject, keywords],
-        (err) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ success: true });
-        }
-    );
-});
-
-// 다개년 통합 키워드 조회
+// 다개년 통합 키워드 조회 (이 라우트를 :examId보다 먼저 정의해야 함)
 app.get('/api/keywords/multi-year', (req, res) => {
     const examType = req.query.examType; // '1st' or '2nd'
     const subject = req.query.subject || '전체';
@@ -234,6 +192,57 @@ app.get('/api/keywords/multi-year', (req, res) => {
             yearData: yearData
         });
     });
+});
+
+// 키워드 불러오기
+app.get('/api/keywords/:examId', (req, res) => {
+    const examId = req.params.examId;
+    const subject = req.query.subject || '전체';
+
+    if (subject === '전체') {
+        // "전체" 선택 시: 해당 시험의 모든 과목 데이터를 통합
+        db.all('SELECT keywords FROM keywords WHERE exam_id = ? AND subject != ?', [examId, '전체'], (err, rows) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+
+            // 모든 과목의 키워드를 합침
+            const allKeywords = rows.map(row => row.keywords).filter(k => k).join('\n');
+            res.json({ keywords: allKeywords, isAggregated: true });
+        });
+    } else {
+        // 특정 과목 선택 시
+        db.get('SELECT keywords FROM keywords WHERE exam_id = ? AND subject = ?', [examId, subject], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ keywords: row ? row.keywords : '', isAggregated: false });
+        });
+    }
+});
+
+// 키워드 저장 (로그인 필요)
+app.post('/api/keywords/:examId', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '권한 없음' });
+    }
+
+    const examId = req.params.examId;
+    const subject = req.body.subject || '전체';
+    const keywords = req.body.keywords;
+
+    db.run('INSERT OR REPLACE INTO keywords (exam_id, subject, keywords) VALUES (?, ?, ?)',
+        [examId, subject, keywords],
+        (err) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ success: true });
+        }
+    );
 });
 
 app.listen(PORT, () => {
