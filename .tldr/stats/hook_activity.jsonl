@@ -29,3 +29,4 @@
 {"hook_name": "edit-context-inject", "invocations": 1, "successes": 1, "failures": 0, "metrics": {"edits_processed": 1, "symbols_shown": 18}, "timestamp": "2026-02-10T01:55:51.040135+00:00"}
 {"hook_name": "post-edit-notify", "invocations": 4, "successes": 4, "failures": 0, "metrics": {"edits_notified": 4, "reindexes_triggered": 0}, "timestamp": "2026-02-10T02:07:13.444637+00:00"}
 {"hook_name": "edit-context-inject", "invocations": 1, "successes": 1, "failures": 0, "metrics": {"edits_processed": 1, "symbols_shown": 18}, "timestamp": "2026-02-10T02:07:13.444637+00:00"}
+{"hook_name": "post-edit-notify", "invocations": 1, "successes": 1, "failures": 0, "metrics": {"edits_notified": 1, "reindexes_triggered": 0}, "timestamp": "2026-02-10T02:42:13.170757+00:00"}

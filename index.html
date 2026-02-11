@@ -17,6 +17,27 @@
 
     <hr>
 
+    <div id="ddaySection">
+        <h2>시험 D-DAY</h2>
+        <div id="ddayContainer" style="display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 10px;">
+            <!-- 디데이 카드가 여기에 동적으로 생성됩니다 -->
+        </div>
+        <!-- 관리자 전용: 날짜 추가/수정 -->
+        <div id="adminDateSection" style="display:none; margin-top: 15px; padding: 12px; background: #f5f5f5; border-radius: 6px;">
+            <strong>시험 날짜 관리</strong>
+            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <select id="newExamType" style="padding: 4px;">
+                    <option value="1차">1차 시험</option>
+                    <option value="2차">2차 시험</option>
+                </select>
+                <input type="date" id="newExamDate" style="padding: 4px;">
+                <input type="text" id="newExamLabel" placeholder="예: 제34회 1차 시험" style="padding: 4px; width: 180px;">
+                <button onclick="saveExamDate()">저장</button>
+            </div>
+        </div>
+        <hr>
+    </div>
+
     <h2>메뉴</h2>
 
     <ul>
@@ -28,17 +49,107 @@
     <p>공인노무사 1차 시험 학습을 위한 플래너입니다.</p>
 
     <script>
+        var isLoggedIn = false;
+
+        // D-DAY 계산
+        function calcDday(dateStr) {
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var target = new Date(dateStr);
+            target.setHours(0, 0, 0, 0);
+            return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+        }
+
+        // D-DAY 카드 렌더링
+        function renderDdays(examDates) {
+            var container = document.getElementById('ddayContainer');
+            container.innerHTML = '';
+
+            var entries = Object.entries(examDates);
+            var upcoming = entries.filter(function(e) { return calcDday(e[1].date) >= 0; });
+
+            if (upcoming.length === 0) {
+                document.getElementById('ddaySection').style.display = isLoggedIn ? 'block' : 'none';
+                if (isLoggedIn) {
+                    container.innerHTML = '<p style="color:#999;">등록된 시험 일정이 없습니다. 아래에서 추가하세요.</p>';
+                }
+                return;
+            }
+
+            document.getElementById('ddaySection').style.display = 'block';
+
+            upcoming.forEach(function(entry) {
+                var type = entry[0];
+                var info = entry[1];
+                var diff = calcDday(info.date);
+                var ddayText = diff === 0 ? 'D-DAY!' : 'D-' + diff;
+                var color = diff <= 7 ? '#e74c3c' : diff <= 30 ? '#e67e22' : '#2980b9';
+
+                var card = document.createElement('div');
+                card.style.cssText = 'border: 2px solid ' + color + '; border-radius: 10px; padding: 16px 24px; text-align: center; min-width: 160px;';
+                card.innerHTML =
+                    '<div style="font-size:13px; color:#666; margin-bottom:4px;">' + (info.label || type + ' 시험') + '</div>' +
+                    '<div style="font-size:36px; font-weight:bold; color:' + color + ';">' + ddayText + '</div>' +
+                    '<div style="font-size:12px; color:#999; margin-top:4px;">' + info.date + '</div>' +
+                    (isLoggedIn ? '<button onclick="deleteExamDate(\'' + type + '\')" style="margin-top:8px; font-size:11px; color:#999; background:none; border:none; cursor:pointer;">삭제</button>' : '');
+                container.appendChild(card);
+            });
+        }
+
+        // 시험 날짜 불러오기
+        function loadExamDates() {
+            fetch('/api/exam-dates')
+                .then(function(r) { return r.json(); })
+                .then(function(data) { renderDdays(data); });
+        }
+
+        // 시험 날짜 저장
+        function saveExamDate() {
+            var exam_type = document.getElementById('newExamType').value;
+            var exam_date = document.getElementById('newExamDate').value;
+            var label = document.getElementById('newExamLabel').value;
+
+            if (!exam_date) { alert('날짜를 입력하세요.'); return; }
+
+            fetch('/api/exam-dates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exam_type: exam_type, exam_date: exam_date, label: label })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    document.getElementById('newExamDate').value = '';
+                    document.getElementById('newExamLabel').value = '';
+                    loadExamDates();
+                } else {
+                    alert('저장 실패');
+                }
+            });
+        }
+
+        // 시험 날짜 삭제
+        function deleteExamDate(examType) {
+            if (!confirm(examType + ' 시험 날짜를 삭제할까요?')) return;
+            fetch('/api/exam-dates/' + encodeURIComponent(examType), { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (data.success) loadExamDates(); });
+        }
+
         // 로그인 상태 확인
         fetch('/api/auth/status')
             .then(function(response) { return response.json(); })
             .then(function(data) {
-                if (data.loggedIn) {
+                isLoggedIn = data.loggedIn;
+                if (isLoggedIn) {
                     document.getElementById('authStatus').textContent = '로그인됨: ' + data.username;
                     document.getElementById('loginLink').style.display = 'none';
                     document.getElementById('logoutBtn').style.display = 'inline';
+                    document.getElementById('adminDateSection').style.display = 'block';
                 } else {
                     document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
                 }
+                loadExamDates();
             });
 
         // 로그아웃
@@ -46,9 +157,7 @@
             fetch('/api/auth/logout', { method: 'POST' })
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
-                    if (data.success) {
-                        location.reload();
-                    }
+                    if (data.success) { location.reload(); }
                 });
         });
     </script>

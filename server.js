@@ -41,6 +41,11 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
             keywords TEXT,
             PRIMARY KEY (exam_id, subject)
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS exam_dates (
+            exam_type TEXT PRIMARY KEY,
+            exam_date TEXT,
+            label TEXT
+        )`);
     }
 });
 
@@ -99,6 +104,56 @@ app.post('/api/checklist', (req, res) => {
             stmt.run(id, checked ? 1 : 0);
         }
         stmt.finalize();
+        res.json({ success: true });
+    });
+});
+
+// 시험 날짜 조회
+app.get('/api/exam-dates', (req, res) => {
+    db.all('SELECT * FROM exam_dates', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        const result = {};
+        rows.forEach(row => {
+            result[row.exam_type] = { date: row.exam_date, label: row.label };
+        });
+        res.json(result);
+    });
+});
+
+// 시험 날짜 저장 (로그인 필요)
+app.post('/api/exam-dates', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '권한 없음' });
+    }
+
+    const { exam_type, exam_date, label } = req.body;
+
+    db.run('INSERT OR REPLACE INTO exam_dates (exam_type, exam_date, label) VALUES (?, ?, ?)',
+        [exam_type, exam_date, label],
+        (err) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.json({ success: true });
+        }
+    );
+});
+
+// 시험 날짜 삭제 (로그인 필요)
+app.delete('/api/exam-dates/:examType', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '권한 없음' });
+    }
+
+    db.run('DELETE FROM exam_dates WHERE exam_type = ?', [req.params.examType], (err) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
         res.json({ success: true });
     });
 });
