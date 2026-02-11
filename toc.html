@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>목차 암기 - 노무사 학습 플래너</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+    <p><a href="index.html">메인으로 돌아가기</a></p>
+    <h1>목차 암기</h1>
+
+    <hr>
+
+    <!-- 과목 선택 -->
+    <p>
+        <strong>과목 선택: </strong>
+        <button onclick="selectSubject('labor')">노동법</button>
+        <button onclick="selectSubject('civil')">민법</button>
+        <button onclick="selectSubject('insurance')">사보법</button>
+        <button onclick="selectSubject('business')">경영학</button>
+    </p>
+
+    <!-- 모드 선택 -->
+    <p id="modeBtns">
+        <strong>모드: </strong>
+        <button onclick="selectMode('view')">목차 보기</button>
+        <button id="sortBtn" onclick="selectMode('sort')">순서 맞추기</button>
+        <button id="quiz4Btn" style="display:none;" onclick="selectMode('quiz4')">4지선다</button>
+        <button id="quizSABtn" style="display:none;" onclick="selectMode('quizSA')">주관식</button>
+    </p>
+
+    <hr>
+
+    <div id="content"></div>
+
+    <script>
+    var DATA = {
+        labor: {
+            name: '노동법',
+            game: 'sort',
+            items: [
+                { text: '근로기준법 총칙' },
+                { text: '근로계약' },
+                { text: '임금' },
+                { text: '근로시간' },
+                { text: '여성과 연소자' },
+                { text: '취업규칙 / 기숙사 / 근로감독관' },
+                { text: '노동법 기본이론' },
+                { text: '노동조합' },
+                { text: '단체교섭' },
+                { text: '단체협약' },
+                { text: '쟁의행위' },
+                { text: '노동쟁의의 조정' },
+                { text: '부당노동행위' },
+                { text: '기타법령' }
+            ]
+        },
+        civil: {
+            name: '민법',
+            game: 'quiz',
+            sections: [
+                {
+                    name: '민법총칙',
+                    items: [
+                        { range: '1조 ~ 2조', topic: '민법일반, 법원, 신의칙' },
+                        { range: '3조 ~ 8조', topic: '태아, 미성년자' },
+                        { range: '9조 ~ 14조', topic: '제한능력자' },
+                        { range: '15조 ~ 17조', topic: '제한능력자 상대방 보호' },
+                        { range: '18조 ~ 30조', topic: '주소, 부재와 실종, 법인 일반' },
+                        { range: '31조 ~ 97조', topic: '법인' },
+                        { range: '98조 ~ 104조', topic: '물건, 법률행위 일반' },
+                        { range: '105조 ~ 106조', topic: '법률행위' },
+                        { range: '107조 ~ 113조', topic: '법률행위, 의사표시' },
+                        { range: '114조 ~ 136조', topic: '대리' },
+                        { range: '137조 ~ 161조', topic: '무효취소, 조건기한, 기간' },
+                        { range: '162조 ~ 184조', topic: '소멸시효' }
+                    ]
+                },
+                {
+                    name: '채권총칙',
+                    items: [
+                        { range: '373조 ~ 390조', topic: '채권의 목적, 채무불이행' },
+                        { range: '391조 ~ 403조', topic: '손해배상' },
+                        { range: '404조 ~ 405조', topic: '채권자대위권' },
+                        { range: '406조 ~ 407조', topic: '채권자취소권' },
+                        { range: '408조 ~ 448조', topic: '다수당사자 채권관계' },
+                        { range: '449조 ~ 486조', topic: '채권양도, 채무인수, 변제' },
+                        { range: '487조 ~ 526조', topic: '대물변제, 공탁, 상계' }
+                    ]
+                },
+                {
+                    name: '채권각칙',
+                    items: [
+                        { range: '527조 ~ 542조', topic: '계약성립, 제3자를 위한 계약' },
+                        { range: '554조 ~ 595조', topic: '증여, 매매' },
+                        { range: '598조 ~ 654조', topic: '소비대차, 임대차' },
+                        { range: '655조 ~ 724조', topic: '도급, 위임, 조합' },
+                        { range: '725조 ~ 766조', topic: '부당이득, 불법행위' }
+                    ]
+                }
+            ]
+        },
+        insurance: {
+            name: '사보법',
+            game: 'sort',
+            items: [
+                { text: '사회보험법 총론, 사회보장기본법' },
+                { text: '고용보험법' },
+                { text: '산업재해보상보험법' },
+                { text: '고용·산재 보험료 징수법' },
+                { text: '건강보험법' },
+                { text: '국민연금법' }
+            ]
+        },
+        business: {
+            name: '경영학',
+            game: 'sort',
+            items: [
+                { text: '경영학의 기초' },
+                { text: '전략경영' },
+                { text: '경영조직론' },
+                { text: '인적자원관리' },
+                { text: '생산운영관리' },
+                { text: '마케팅관리' },
+                { text: '경영정보시스템' },
+                { text: '재무회계관리' }
+            ]
+        }
+    };
+
+    var currentSubject = 'labor';
+    var currentMode = 'view';
+    var quizList = [];
+    var quizIndex = 0;
+    var quizScore = 0;
+    var sortable = null;
+
+    function selectSubject(subj) {
+        currentSubject = subj;
+        var isCivil = subj === 'civil';
+        document.getElementById('sortBtn').textContent = isCivil ? '섹션별 순서 맞추기' : '순서 맞추기';
+        document.getElementById('quiz4Btn').style.display = isCivil ? '' : 'none';
+        document.getElementById('quizSABtn').style.display = isCivil ? '' : 'none';
+        selectMode('view');
+    }
+
+    function selectMode(mode) {
+        currentMode = mode;
+        render();
+    }
+
+    function render() {
+        var d = DATA[currentSubject];
+        var el = document.getElementById('content');
+        if (currentMode === 'view') renderView(d, el);
+        else if (currentMode === 'sort') renderSort(d, el);
+        else if (currentMode === 'quiz4') renderQuiz(d, el, false);
+        else if (currentMode === 'quizSA') renderQuiz(d, el, true);
+    }
+
+    // 목차 보기
+    function renderView(d, el) {
+        var html = '<h2>' + d.name + ' 목차</h2>';
+        if (d.sections) {
+            d.sections.forEach(function(sec) {
+                html += '<h3>' + sec.name + '</h3><ol>';
+                sec.items.forEach(function(item) {
+                    html += '<li><b>' + item.range + '</b> — ' + item.topic + '</li>';
+                });
+                html += '</ol>';
+            });
+        } else {
+            html += '<ol>';
+            d.items.forEach(function(item) {
+                html += '<li>' + item.text + '</li>';
+            });
+            html += '</ol>';
+        }
+        el.innerHTML = html;
+    }
+
+    // 순서 맞추기
+    function renderSort(d, el) {
+        if (d.sections) {
+            var secOpts = d.sections.map(function(s, i) {
+                return '<option value="' + i + '">' + s.name + '</option>';
+            }).join('');
+            el.innerHTML = '<h2>' + d.name + ' 순서 맞추기</h2>' +
+                '<p>섹션: <select id="secSelect" onchange="startSort()">' + secOpts + '</select></p>' +
+                '<div id="sortArea"></div>';
+            startSort();
+            return;
+        }
+        var items = d.items.map(function(item) { return item.text; });
+        el.innerHTML = '<h2>' + d.name + ' 순서 맞추기</h2><div id="sortArea"></div>';
+        renderSortGame(document.getElementById('sortArea'), items);
+    }
+
+    function startSort() {
+        var d = DATA[currentSubject];
+        var secIdx = parseInt(document.getElementById('secSelect').value);
+        var sec = d.sections[secIdx];
+        var items = sec.items.map(function(item) { return item.range + ' — ' + item.topic; });
+        renderSortGame(document.getElementById('sortArea'), items);
+    }
+
+    function renderSortGame(container, correctItems) {
+        var shuffled = correctItems.slice().sort(function() { return Math.random() - 0.5; });
+        var html = '<p>항목을 드래그하여 올바른 순서로 정렬하세요.</p><ol id="sortList">';
+        shuffled.forEach(function(text) {
+            html += '<li style="cursor:grab; border:1px solid #ccc; padding:6px; margin:4px 0; background:white; list-style:none;" data-text="' +
+                text.replace(/"/g, '&quot;') + '">' + text + '</li>';
+        });
+        html += '</ol>';
+        html += '<p><button onclick="checkSort(' + JSON.stringify(correctItems) + ')">정답 확인</button>' +
+                ' <button onclick="render()">다시 섞기</button></p>';
+        html += '<div id="sortResult"></div>';
+        container.innerHTML = html;
+
+        if (sortable) { sortable.destroy(); sortable = null; }
+        sortable = Sortable.create(document.getElementById('sortList'), { animation: 150 });
+    }
+
+    function checkSort(correct) {
+        var items = document.querySelectorAll('#sortList li');
+        var allCorrect = true;
+        items.forEach(function(item, i) {
+            if (item.getAttribute('data-text') === correct[i]) {
+                item.style.background = '#d4edda';
+            } else {
+                item.style.background = '#f8d7da';
+                allCorrect = false;
+            }
+        });
+        document.getElementById('sortResult').innerHTML = allCorrect
+            ? '<p><b>정답입니다!</b></p>'
+            : '<p><b>틀린 항목이 있습니다. 빨간색 항목을 확인하세요.</b></p>';
+    }
+
+    // 민법 퀴즈
+    function renderQuiz(d, el, isSubjective) {
+        quizList = [];
+        d.sections.forEach(function(sec) {
+            sec.items.forEach(function(item) {
+                quizList.push({ range: item.range, topic: item.topic, section: sec.name });
+            });
+        });
+        quizList = quizList.sort(function() { return Math.random() - 0.5; });
+        quizIndex = 0;
+        quizScore = 0;
+        renderQuizQuestion(el, isSubjective);
+    }
+
+    function renderQuizQuestion(el, isSubjective) {
+        if (quizIndex >= quizList.length) {
+            renderQuizResult(el, isSubjective);
+            return;
+        }
+        var q = quizList[quizIndex];
+        var html = '<h2>민법 ' + (isSubjective ? '주관식' : '4지선다') + '</h2>';
+        html += '<p>' + (quizIndex + 1) + ' / ' + quizList.length + ' &nbsp; 점수: ' + quizScore + '</p>';
+        html += '<p>[ ' + q.section + ' ]</p>';
+        html += '<h3>' + q.range + '</h3>';
+        html += '<p id="qFeedback"></p>';
+
+        if (isSubjective) {
+            html += '<p><input id="quizInput" type="text" placeholder="주제를 입력하세요" onkeydown="if(event.key===\'Enter\')checkSA()">' +
+                    ' <button onclick="checkSA()">확인</button></p>';
+        } else {
+            var allTopics = [];
+            DATA.civil.sections.forEach(function(sec) {
+                sec.items.forEach(function(item) { allTopics.push(item.topic); });
+            });
+            var wrong = allTopics.filter(function(t) { return t !== q.topic; })
+                .sort(function() { return Math.random() - 0.5; }).slice(0, 3);
+            var choices = [q.topic].concat(wrong).sort(function() { return Math.random() - 0.5; });
+            html += '<ol>';
+            choices.forEach(function(c, i) {
+                html += '<li><button id="choice' + i + '" onclick="checkChoice(this,\'' +
+                    c.replace(/'/g, "\\'") + '\',\'' + q.topic.replace(/'/g, "\\'") + '\')">' + c + '</button></li>';
+            });
+            html += '</ol>';
+        }
+
+        html += '<button id="nextBtn" style="display:none;" onclick="nextQuiz(' + isSubjective + ')">다음 문제</button>';
+        el.innerHTML = html;
+        if (isSubjective) {
+            var inp = document.getElementById('quizInput');
+            if (inp) inp.focus();
+        }
+    }
+
+    function checkChoice(btn, chosen, correct) {
+        document.querySelectorAll('li button').forEach(function(b) { b.disabled = true; });
+        var feedback = document.getElementById('qFeedback');
+        if (chosen === correct) {
+            btn.style.background = '#d4edda';
+            feedback.innerHTML = '<b>정답!</b>';
+            quizScore++;
+        } else {
+            btn.style.background = '#f8d7da';
+            feedback.innerHTML = '<b>오답!</b> 정답: ' + correct;
+            document.querySelectorAll('li button').forEach(function(b) {
+                if (b.textContent === correct) b.style.background = '#d4edda';
+            });
+        }
+        document.getElementById('nextBtn').style.display = 'inline';
+    }
+
+    function checkSA() {
+        var inp = document.getElementById('quizInput');
+        var answer = inp.value.trim();
+        var correct = quizList[quizIndex].topic;
+        inp.disabled = true;
+        var norm = function(s) { return s.replace(/[,\s·]/g, '').toLowerCase(); };
+        var isCorrect = norm(answer) === norm(correct) ||
+            correct.split(',').some(function(p) { return norm(answer) === norm(p.trim()); });
+        var feedback = document.getElementById('qFeedback');
+        if (isCorrect) {
+            feedback.innerHTML = '<b>정답!</b>';
+            inp.style.background = '#d4edda';
+            quizScore++;
+        } else {
+            feedback.innerHTML = '<b>오답!</b> 정답: ' + correct;
+            inp.style.background = '#f8d7da';
+        }
+        document.getElementById('nextBtn').style.display = 'inline';
+    }
+
+    function nextQuiz(isSubjective) {
+        quizIndex++;
+        renderQuizQuestion(document.getElementById('content'), isSubjective);
+    }
+
+    function renderQuizResult(el, isSubjective) {
+        var total = quizList.length;
+        el.innerHTML = '<h2>결과</h2>' +
+            '<p>' + quizScore + ' / ' + total + '점</p>' +
+            '<p><button onclick="renderQuiz(DATA[currentSubject], document.getElementById(\'content\'), ' + isSubjective + ')">다시 풀기</button>' +
+            ' <button onclick="selectMode(\'view\')">목차 보기</button></p>';
+    }
+
+    selectSubject('labor');
+    </script>
+</body>
+</html>

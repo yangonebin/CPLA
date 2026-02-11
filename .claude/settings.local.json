@@ -5,7 +5,9 @@
       "Bash(find:*)",
       "Bash(tldr extract:*)",
       "Bash(sqlite3:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(xargs basename:*)"
     ]
   }
 }
