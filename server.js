@@ -26,7 +26,7 @@ app.use(session({
 app.use(express.static('.'));
 
 // SQLite 데이터베이스 초기화
-const db = new sqlite3.Database(DB_PATH, (err) => {
+let db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
         console.error('DB 연결 실패:', err);
     } else {
@@ -333,10 +333,17 @@ app.post('/api/restore', upload.single('db'), (req, res) => {
         return res.status(400).json({ success: false, message: '파일 없음' });
     }
 
-    fs.copyFileSync(req.file.path, DB_PATH);
-    fs.unlinkSync(req.file.path);
-    res.json({ success: true, message: 'DB 복구 완료. 서버를 재시작합니다.' });
-    setTimeout(() => process.exit(0), 500);
+    db.close(() => {
+        fs.copyFileSync(req.file.path, DB_PATH);
+        fs.unlinkSync(req.file.path);
+        db = new sqlite3.Database(DB_PATH, (err) => {
+            if (err) {
+                res.status(500).json({ success: false, message: 'DB 재연결 실패' });
+            } else {
+                res.json({ success: true, message: 'DB 복구 완료!' });
+            }
+        });
+    });
 });
 
 app.listen(PORT, () => {
