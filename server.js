@@ -75,6 +75,13 @@ let db = new sqlite3.Database(DB_PATH, (err) => {
             exam_date TEXT,
             label TEXT
         )`);
+        db.run(`CREATE TABLE IF NOT EXISTS todos (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL,
+            text TEXT NOT NULL DEFAULT '',
+            checked INTEGER DEFAULT 0,
+            order_idx INTEGER DEFAULT 0
+        )`);
     }
 });
 
@@ -327,6 +334,53 @@ app.post('/api/keywords/:examId', (req, res) => {
             res.json({ success: true });
         }
     );
+});
+
+// 할 일 목록 조회 (월 단위)
+app.get('/api/todos', (req, res) => {
+    const month = req.query.month; // YYYY-MM
+    if (!month) return res.status(400).json({ error: 'month required' });
+    db.all('SELECT * FROM todos WHERE date LIKE ? ORDER BY date, order_idx', [month + '%'], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows.map(r => ({ ...r, checked: r.checked === 1 })));
+    });
+});
+
+// 할 일 추가 (로그인 필요)
+app.post('/api/todos', (req, res) => {
+    if (req.session.user !== 'yangonebin') return res.status(403).json({ success: false });
+    const { date, text } = req.body;
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    db.run('INSERT INTO todos (id, date, text, checked, order_idx) VALUES (?, ?, ?, 0, (SELECT COALESCE(MAX(order_idx)+1,0) FROM todos WHERE date=?))',
+        [id, date, text || '', date], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id, date, text: text || '', checked: false });
+        });
+});
+
+// 할 일 수정 (로그인 필요)
+app.patch('/api/todos/:id', (req, res) => {
+    if (req.session.user !== 'yangonebin') return res.status(403).json({ success: false });
+    const { text, checked } = req.body;
+    const fields = [];
+    const vals = [];
+    if (text !== undefined) { fields.push('text=?'); vals.push(text); }
+    if (checked !== undefined) { fields.push('checked=?'); vals.push(checked); }
+    if (!fields.length) return res.json({ success: true });
+    vals.push(req.params.id);
+    db.run('UPDATE todos SET ' + fields.join(',') + ' WHERE id=?', vals, (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// 할 일 삭제 (로그인 필요)
+app.delete('/api/todos/:id', (req, res) => {
+    if (req.session.user !== 'yangonebin') return res.status(403).json({ success: false });
+    db.run('DELETE FROM todos WHERE id=?', [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
 });
 
 // DB 파일 업로드 복구 (로그인 필요)

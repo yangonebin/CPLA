@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>학습 플래너</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: monospace; max-width: 860px; margin: 40px auto; padding: 20px; }
+        a { color: inherit; }
+
+        /* 달력 */
+        .cal-nav-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+        .cal-nav { cursor: pointer; font-size: 18px; background: none; border: none; font-family: monospace; }
+        .cal-nav:hover { text-decoration: underline; }
+        .cal-month-label { font-size: 18px; font-weight: bold; min-width: 140px; text-align: center; }
+
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #000; border-left: 1px solid #000; }
+        .cal-dow { text-align: center; padding: 6px 4px; font-size: 12px; border-right: 1px solid #000; border-bottom: 1px solid #000; background: #f5f5f5; }
+        .cal-dow:first-child { color: #c00; }
+        .cal-dow:last-child { color: #00c; }
+
+        .cal-cell { min-height: 72px; padding: 4px 6px; border-right: 1px solid #000; border-bottom: 1px solid #000; cursor: pointer; position: relative; vertical-align: top; }
+        .cal-cell:hover:not(.empty) { background: #fafafa; }
+        .cal-cell.selected { background: #f0f0f0; }
+        .cal-cell.empty { background: #fafafa; cursor: default; }
+        .cal-cell.today .day-num { font-weight: bold; text-decoration: underline; }
+        .cal-cell:nth-child(7n+1) .day-num { color: #c00; }
+        .cal-cell:nth-child(7n) .day-num { color: #00c; }
+
+        .day-num { font-size: 13px; }
+        .add-btn { position: absolute; top: 3px; right: 5px; font-size: 16px; color: #bbb; background: none; border: none; cursor: pointer; line-height: 1; padding: 0; font-family: monospace; }
+        .add-btn:hover { color: #000; }
+        .todo-count { font-size: 11px; color: #888; margin-top: 3px; }
+        .todo-preview { font-size: 11px; color: #666; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .todo-preview.done { text-decoration: line-through; color: #bbb; }
+
+        /* 할 일 패널 */
+        .panel { margin-top: 24px; border-top: 2px solid #000; padding-top: 16px; }
+        .panel-title { font-size: 16px; font-weight: bold; margin-bottom: 12px; }
+
+        .todo-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+        .todo-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; }
+        .todo-text { flex: 1; border: none; outline: none; font-family: monospace; font-size: 14px; background: transparent; padding: 0; }
+        .todo-text.done { text-decoration: line-through; color: #aaa; }
+        .todo-text:focus { border-bottom: 1px solid #ccc; }
+        .todo-text[readonly] { cursor: default; }
+        .del-btn { color: #ddd; background: none; border: none; cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 0 2px; }
+        .del-btn:hover { color: #c00; }
+
+        .add-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; color: #aaa; cursor: pointer; font-size: 13px; margin-top: 4px; }
+        .add-row:hover { color: #000; }
+    </style>
+</head>
+<body>
+
+<div style="position:absolute; top:20px; right:20px;">
+    <a href="index.html">← 메인</a>
+</div>
+
+<h1>학습 플래너</h1>
+<hr>
+
+<div class="cal-nav-row">
+    <button class="cal-nav" onclick="changeMonth(-1)">←</button>
+    <span class="cal-month-label" id="calLabel"></span>
+    <button class="cal-nav" onclick="changeMonth(1)">→</button>
+</div>
+
+<div class="cal-grid" id="calGrid">
+    <div class="cal-dow">일</div>
+    <div class="cal-dow">월</div>
+    <div class="cal-dow">화</div>
+    <div class="cal-dow">수</div>
+    <div class="cal-dow">목</div>
+    <div class="cal-dow">금</div>
+    <div class="cal-dow">토</div>
+</div>
+
+<div class="panel" id="panel" style="display:none;">
+    <div class="panel-title" id="panelTitle"></div>
+    <div id="todoList"></div>
+    <div class="add-row" id="addRow" onclick="addTodo()" style="display:none;">+ 할 일 추가</div>
+</div>
+
+<script>
+    var today = new Date();
+    var curYear = today.getFullYear();
+    var curMonth = today.getMonth();
+    var selectedDate = null;
+    var isLoggedIn = false;
+    var cache = {}; // date -> todo[]
+
+    fetch('/api/auth/status')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            isLoggedIn = d.loggedIn;
+            renderCalendar();
+        });
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function changeMonth(d) {
+        curMonth += d;
+        if (curMonth < 0) { curMonth = 11; curYear--; }
+        if (curMonth > 11) { curMonth = 0; curYear++; }
+        selectedDate = null;
+        document.getElementById('panel').style.display = 'none';
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        var grid = document.getElementById('calGrid');
+        while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+        var months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+        document.getElementById('calLabel').textContent = curYear + '년 ' + months[curMonth];
+
+        var firstDay = new Date(curYear, curMonth, 1).getDay();
+        var daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+
+        for (var i = 0; i < firstDay; i++) {
+            var e = document.createElement('div');
+            e.className = 'cal-cell empty';
+            grid.appendChild(e);
+        }
+
+        for (var d = 1; d <= daysInMonth; d++) {
+            grid.appendChild(makeCell(d));
+        }
+
+        var total = firstDay + daysInMonth;
+        var rem = total % 7;
+        if (rem > 0) {
+            for (var j = 0; j < 7 - rem; j++) {
+                var e2 = document.createElement('div');
+                e2.className = 'cal-cell empty';
+                grid.appendChild(e2);
+            }
+        }
+
+        loadMonthTodos();
+    }
+
+    function makeCell(d) {
+        var dateStr = curYear + '-' + pad(curMonth + 1) + '-' + pad(d);
+        var isToday = (today.getFullYear() === curYear && today.getMonth() === curMonth && today.getDate() === d);
+
+        var cell = document.createElement('div');
+        cell.className = 'cal-cell' + (isToday ? ' today' : '') + (selectedDate === dateStr ? ' selected' : '');
+        cell.id = 'cell-' + dateStr;
+        cell.onclick = function() { selectDate(dateStr); };
+
+        var dayNum = document.createElement('span');
+        dayNum.className = 'day-num';
+        dayNum.textContent = d;
+        cell.appendChild(dayNum);
+
+        if (isLoggedIn) {
+            var btn = document.createElement('button');
+            btn.className = 'add-btn';
+            btn.textContent = '+';
+            btn.onclick = function(e) { e.stopPropagation(); selectDate(dateStr); setTimeout(addTodo, 0); };
+            cell.appendChild(btn);
+        }
+
+        var count = document.createElement('div');
+        count.className = 'todo-count';
+        count.id = 'count-' + dateStr;
+        cell.appendChild(count);
+
+        var preview = document.createElement('div');
+        preview.className = 'todo-preview';
+        preview.id = 'preview-' + dateStr;
+        cell.appendChild(preview);
+
+        return cell;
+    }
+
+    function loadMonthTodos() {
+        var ym = curYear + '-' + pad(curMonth + 1);
+        fetch('/api/todos?month=' + ym)
+            .then(function(r) { return r.json(); })
+            .then(function(rows) {
+                cache = {};
+                rows.forEach(function(t) {
+                    if (!cache[t.date]) cache[t.date] = [];
+                    cache[t.date].push(t);
+                });
+                updateCells();
+                if (selectedDate) renderPanel();
+            });
+    }
+
+    function updateCells() {
+        Object.keys(cache).forEach(function(date) {
+            var todos = cache[date];
+            var countEl = document.getElementById('count-' + date);
+            var previewEl = document.getElementById('preview-' + date);
+            if (!countEl) return;
+            var done = todos.filter(function(t) { return t.checked; }).length;
+            countEl.textContent = todos.length > 0 ? done + '/' + todos.length : '';
+            var first = todos.find(function(t) { return t.text; });
+            if (first) {
+                previewEl.textContent = first.text;
+                previewEl.className = 'todo-preview' + (first.checked ? ' done' : '');
+            } else {
+                previewEl.textContent = '';
+            }
+        });
+    }
+
+    function selectDate(dateStr) {
+        if (selectedDate) {
+            var prev = document.getElementById('cell-' + selectedDate);
+            if (prev) prev.classList.remove('selected');
+        }
+        selectedDate = dateStr;
+        var cell = document.getElementById('cell-' + dateStr);
+        if (cell) cell.classList.add('selected');
+        renderPanel();
+    }
+
+    function renderPanel() {
+        document.getElementById('panel').style.display = 'block';
+        var p = selectedDate.split('-');
+        document.getElementById('panelTitle').textContent = p[0] + '년 ' + parseInt(p[1]) + '월 ' + parseInt(p[2]) + '일';
+        document.getElementById('addRow').style.display = isLoggedIn ? 'flex' : 'none';
+
+        var list = document.getElementById('todoList');
+        list.innerHTML = '';
+        var todos = cache[selectedDate] || [];
+        todos.forEach(function(t) { list.appendChild(makeTodoItem(t)); });
+    }
+
+    function makeTodoItem(todo) {
+        var row = document.createElement('div');
+        row.className = 'todo-item';
+        row.id = 'todo-' + todo.id;
+
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = todo.checked;
+        cb.disabled = !isLoggedIn;
+        cb.onchange = function() {
+            todo.checked = cb.checked;
+            txt.className = 'todo-text' + (todo.checked ? ' done' : '');
+            fetch('/api/todos/' + todo.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checked: todo.checked ? 1 : 0 })
+            }).then(function() { updateCells(); });
+        };
+
+        var txt = document.createElement('input');
+        txt.type = 'text';
+        txt.className = 'todo-text' + (todo.checked ? ' done' : '');
+        txt.value = todo.text;
+        txt.readOnly = !isLoggedIn;
+        txt.onblur = function() {
+            if (txt.value !== todo.text) {
+                todo.text = txt.value;
+                fetch('/api/todos/' + todo.id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: txt.value })
+                }).then(function() { updateCells(); });
+            }
+        };
+        txt.onkeydown = function(e) {
+            if (e.key === 'Enter') { txt.blur(); addTodo(); }
+            if (e.key === 'Backspace' && txt.value === '') { deleteTodo(todo.id); }
+        };
+
+        row.appendChild(cb);
+        row.appendChild(txt);
+
+        if (isLoggedIn) {
+            var del = document.createElement('button');
+            del.className = 'del-btn';
+            del.textContent = '×';
+            del.onclick = function() { deleteTodo(todo.id); };
+            row.appendChild(del);
+        }
+
+        return row;
+    }
+
+    function addTodo() {
+        if (!isLoggedIn || !selectedDate) return;
+        fetch('/api/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: selectedDate, text: '' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(t) {
+            if (!cache[selectedDate]) cache[selectedDate] = [];
+            cache[selectedDate].push(t);
+            renderPanel();
+            updateCells();
+            var item = document.getElementById('todo-' + t.id);
+            if (item) item.querySelector('input[type="text"]').focus();
+        });
+    }
+
+    function deleteTodo(id) {
+        fetch('/api/todos/' + id, { method: 'DELETE' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.success) return;
+                cache[selectedDate] = (cache[selectedDate] || []).filter(function(t) { return t.id !== id; });
+                renderPanel();
+                updateCells();
+            });
+    }
+</script>
+</body>
+</html>
