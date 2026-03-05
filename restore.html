@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DB 복구</title>
+    <style>
+        body { font-family: sans-serif; max-width: 400px; margin: 80px auto; padding: 20px; }
+        h2 { margin-bottom: 24px; }
+        input[type="file"] { display: block; margin: 16px 0; }
+        button { padding: 10px 24px; background: #333; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
+        #result { margin-top: 20px; padding: 12px; border-radius: 4px; display: none; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h2>DB 복구</h2>
+    <p>재배포 후 백업한 <code>checklist.db</code> 파일을 업로드하세요.</p>
+    <form id="restoreForm">
+        <input type="file" id="dbFile" accept=".db" required>
+        <button type="submit">복구하기</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('restoreForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('dbFile').files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('db', file);
+
+            const result = document.getElementById('result');
+            result.style.display = 'block';
+            result.className = '';
+            result.textContent = '업로드 중...';
+
+            try {
+                const res = await fetch('/api/restore', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    result.className = 'success';
+                    result.textContent = '복구 완료! 페이지를 새로고침하세요.';
+                } else {
+                    result.className = 'error';
+                    result.textContent = data.message || '복구 실패';
+                }
+            } catch (err) {
+                result.className = 'error';
+                result.textContent = '오류: ' + err.message;
+            }
+        });
+    </script>
+</body>
+</html>

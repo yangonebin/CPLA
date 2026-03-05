@@ -2,7 +2,7 @@
 
 === 서버 주소 ===
 
-https://cpla-production.up.railway.app/index.html
+https://cpla.onrender.com
 
 === 주요 기능 ===
 
@@ -16,10 +16,23 @@ https://cpla-production.up.railway.app/index.html
    - 최근 5개년 통합
    - 페이지 연도 기준으로 과거 N년 조회
 
-=== 배포 시 주의사항 ===
+=== 재배포 전 DB 백업 방법 ===
 
-Railway 재배포 시 데이터 유지를 위해 Volume 설정 필요!
-자세한 내용은 RAILWAY_SETUP.md 참고
+[주의] Render 무료 플랜은 재배포 시 DB가 초기화됩니다.
+재배포 전에 반드시 아래 순서대로 백업하세요.
+
+1. 백업 (재배포 전)
+   - 브라우저에서 로그인 후 아래 주소 접속
+   - https://cpla.onrender.com/api/backup
+   - checklist.db 파일이 자동으로 다운로드됨
+
+2. 재배포
+   - GitHub에 코드 푸시하면 Render가 자동으로 재배포
+
+3. 복구 (재배포 후)
+   - 브라우저에서 로그인 후 아래 주소 접속
+   - https://cpla.onrender.com/restore.html
+   - checklist.db 파일 선택 후 "복구하기" 클릭
 
 === 로컬 실행 ===
 

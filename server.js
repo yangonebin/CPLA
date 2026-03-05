@@ -300,6 +300,38 @@ app.post('/api/keywords/:examId', (req, res) => {
     );
 });
 
+// DB 백업 다운로드 (로그인 필요)
+app.get('/api/backup', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).send('로그인 필요');
+    }
+    res.download(DB_PATH, 'checklist.db');
+});
+
+// DB 복구 업로드 (로그인 필요)
+const multer = require('multer');
+const upload = multer({ dest: '/tmp/' });
+
+app.post('/api/restore', upload.single('db'), (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '로그인 필요' });
+    }
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: '파일 없음' });
+    }
+
+    db.close(() => {
+        fs.copyFileSync(req.file.path, DB_PATH);
+        fs.unlinkSync(req.file.path);
+
+        // DB 재연결
+        const newDb = new sqlite3.Database(DB_PATH);
+        Object.assign(db, newDb);
+
+        res.json({ success: true, message: 'DB 복구 완료. 서버를 재시작하세요.' });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`서버 실행중: http://localhost:${PORT}`);
 });
