@@ -48,11 +48,12 @@
 
     <hr>
 
-    <div id="dbSection" style="display:none;">
+    <div id="dbSection">
         <h2>DB 관리</h2>
-        <div style="display: flex; gap: 8px;">
-            <a href="/api/backup">백업 다운로드</a>
-            <a href="/restore.html">복구하기</a>
+        <div>
+            <button id="dbPullBtn" onclick="dbPull()">DB 가져오기</button>
+            <button id="dbPushBtn" style="display:none;" onclick="dbPush()">DB 저장하기</button>
+            <span id="dbStatus" style="margin-left:8px; font-size:13px; color:#666;"></span>
         </div>
         <hr>
     </div>
@@ -157,12 +158,37 @@
                     document.getElementById('loginLink').style.display = 'none';
                     document.getElementById('logoutBtn').style.display = 'inline';
                     document.getElementById('adminDateSection').style.display = 'block';
-                    document.getElementById('dbSection').style.display = 'block';
+                    document.getElementById('dbPushBtn').style.display = 'inline';
                 } else {
                     document.getElementById('authStatus').textContent = '로그인 안 됨 (읽기 전용)';
                 }
                 loadExamDates();
             });
+
+        function dbPull() {
+            var status = document.getElementById('dbStatus');
+            status.textContent = '가져오는 중...';
+            fetch('/api/db/pull', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        status.textContent = '완료! 새로고침합니다...';
+                        setTimeout(function() { location.reload(); }, 1000);
+                    } else {
+                        status.textContent = '실패: ' + data.message;
+                    }
+                });
+        }
+
+        function dbPush() {
+            var status = document.getElementById('dbStatus');
+            status.textContent = '저장 중...';
+            fetch('/api/db/push', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    status.textContent = data.success ? 'GitHub에 저장 완료!' : '실패: ' + data.message;
+                });
+        }
 
         // 로그아웃
         document.getElementById('logoutBtn').addEventListener('click', function() {

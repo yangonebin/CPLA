@@ -3,6 +3,35 @@ const sqlite3 = require('sqlite3').verbose();
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+
+const GITHUB_REPO = 'yangonebin/CPLA';
+const GITHUB_FILE = 'checklist.db';
+
+function githubRequest(method, apiPath, body, token) {
+    return new Promise((resolve, reject) => {
+        const payload = body ? JSON.stringify(body) : null;
+        const req = https.request({
+            hostname: 'api.github.com',
+            path: apiPath,
+            method,
+            headers: {
+                'Authorization': `token ${token}`,
+                'User-Agent': 'cpla-app',
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+                ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data) }));
+        });
+        req.on('error', reject);
+        if (payload) req.write(payload);
+        req.end();
+    });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -300,50 +329,61 @@ app.post('/api/keywords/:examId', (req, res) => {
     );
 });
 
-// DB 백업 다운로드 (로그인 필요)
-app.get('/api/backup', (req, res) => {
-    if (req.session.user !== 'yangonebin') {
-        return res.status(403).send('로그인 필요');
-    }
-    res.download(DB_PATH, 'checklist.db');
-});
-
-// Railway Volume 직접 백업 (임시)
-app.get('/api/backup-volume', (req, res) => {
-    if (req.session.user !== 'yangonebin') {
-        return res.status(403).send('로그인 필요');
-    }
-    const volumePath = '/data/checklist.db';
-    if (fs.existsSync(volumePath)) {
-        res.download(volumePath, 'checklist-volume.db');
-    } else {
-        res.status(404).send('Volume DB 없음. DB_PATH: ' + DB_PATH);
-    }
-});
-
-// DB 복구 업로드 (로그인 필요)
-const multer = require('multer');
-const upload = multer({ dest: '/tmp/' });
-
-app.post('/api/restore', upload.single('db'), (req, res) => {
+// DB 저장하기 - GitHub에 push (로그인 필요)
+app.post('/api/db/push', async (req, res) => {
     if (req.session.user !== 'yangonebin') {
         return res.status(403).json({ success: false, message: '로그인 필요' });
     }
-    if (!req.file) {
-        return res.status(400).json({ success: false, message: '파일 없음' });
-    }
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return res.status(500).json({ success: false, message: 'GITHUB_TOKEN 없음' });
 
-    db.close(() => {
-        fs.copyFileSync(req.file.path, DB_PATH);
-        fs.unlinkSync(req.file.path);
-        db = new sqlite3.Database(DB_PATH, (err) => {
-            if (err) {
-                res.status(500).json({ success: false, message: 'DB 재연결 실패' });
-            } else {
-                res.json({ success: true, message: 'DB 복구 완료!' });
-            }
+    try {
+        const content = fs.readFileSync(DB_PATH).toString('base64');
+        const apiPath = `/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+
+        // 기존 파일 SHA 조회 (업데이트 시 필요)
+        const { status: getStatus, data: fileInfo } = await githubRequest('GET', apiPath, null, token);
+        const sha = getStatus === 200 ? fileInfo.sha : undefined;
+
+        const body = { message: 'DB 업데이트', content, ...(sha ? { sha } : {}) };
+        const { status } = await githubRequest('PUT', apiPath, body, token);
+
+        if (status === 200 || status === 201) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, message: 'GitHub 저장 실패' });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// DB 가져오기 - GitHub에서 pull (로그인 불필요)
+app.post('/api/db/pull', async (req, res) => {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return res.status(500).json({ success: false, message: 'GITHUB_TOKEN 없음' });
+
+    try {
+        const { status, data: fileInfo } = await githubRequest('GET', `/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`, null, token);
+
+        if (status !== 200) {
+            return res.status(404).json({ success: false, message: 'GitHub에 저장된 DB가 없습니다. 먼저 로그인 후 저장하세요.' });
+        }
+
+        const fileBuffer = Buffer.from(fileInfo.content.replace(/\n/g, ''), 'base64');
+        db.close(() => {
+            fs.writeFileSync(DB_PATH, fileBuffer);
+            db = new sqlite3.Database(DB_PATH, (err) => {
+                if (err) {
+                    res.status(500).json({ success: false, message: 'DB 재연결 실패' });
+                } else {
+                    res.json({ success: true });
+                }
+            });
         });
-    });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 app.listen(PORT, () => {
