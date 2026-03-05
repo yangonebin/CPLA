@@ -333,16 +333,10 @@ app.post('/api/restore', upload.single('db'), (req, res) => {
         return res.status(400).json({ success: false, message: '파일 없음' });
     }
 
-    db.close(() => {
-        fs.copyFileSync(req.file.path, DB_PATH);
-        fs.unlinkSync(req.file.path);
-
-        // DB 재연결
-        const newDb = new sqlite3.Database(DB_PATH);
-        Object.assign(db, newDb);
-
-        res.json({ success: true, message: 'DB 복구 완료. 서버를 재시작하세요.' });
-    });
+    fs.copyFileSync(req.file.path, DB_PATH);
+    fs.unlinkSync(req.file.path);
+    res.json({ success: true, message: 'DB 복구 완료. 서버를 재시작합니다.' });
+    setTimeout(() => process.exit(0), 500);
 });
 
 app.listen(PORT, () => {
