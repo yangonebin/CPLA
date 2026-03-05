@@ -329,6 +329,27 @@ app.post('/api/keywords/:examId', (req, res) => {
     );
 });
 
+// DB 파일 업로드 복구 (로그인 필요)
+const multer = require('multer');
+const upload = multer({ dest: '/tmp/' });
+
+app.post('/api/restore', upload.single('db'), (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).json({ success: false, message: '로그인 필요' });
+    }
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: '파일 없음' });
+    }
+    db.close(() => {
+        fs.copyFileSync(req.file.path, DB_PATH);
+        fs.unlinkSync(req.file.path);
+        db = new sqlite3.Database(DB_PATH, (err) => {
+            if (err) res.status(500).json({ success: false, message: 'DB 재연결 실패' });
+            else res.json({ success: true, message: 'DB 복구 완료!' });
+        });
+    });
+});
+
 // DB 저장하기 - GitHub에 push (로그인 필요)
 app.post('/api/db/push', async (req, res) => {
     if (req.session.user !== 'yangonebin') {
