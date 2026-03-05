@@ -1,0 +1,62 @@
+---
+session: general
+date: 2026-02-11
+status: complete
+outcome: SUCCEEDED
+---
+
+goal: 목차 암기 서비스(toc.html) 완성 및 메뉴 링크 이름 변경
+now: 서버 배포 후 전체 기능 확인 (목차 암기, D-DAY, 워드클라우드)
+test: node server.js && open http://localhost:3000
+
+done_this_session:
+  - task: toc.html 목차 암기 서비스 신규 생성 (노동법/민법/사보법/경영학)
+    files: [toc.html]
+  - task: 노동법 오리엔테이션 항목 제거, 디자인 단순화 (아날로그 노 디자인)
+    files: [toc.html]
+  - task: index.html 메뉴 링크 텍스트 변경 ("목차 암기 (순서 맞추기 / 민법 퀴즈)" → "1차 시험 목차 암기")
+    files: [index.html:45]
+
+blockers: []
+
+questions:
+  - Railway 배포 후 toc.html 정상 접근 여부 확인 필요
+  - 사보법 모드: 순서 맞추기만 있고 4지선다/주관식 없음 (의도적 결정)
+
+decisions:
+  - 디자인_방침: 스타일 없는 순수 HTML (사이트 정체성 "아날로그 노 디자인")
+  - 사보법_모드: 순서 맞추기만 구현 (4지선다/주관식은 민법 전용)
+  - 메뉴_링크명: "1차 시험 목차 암기" (과목 범위 명시)
+
+findings:
+  - toc_data_structure: 민법만 sections 구조, 나머지 과목은 items 배열로 단순화
+  - 민법_quiz_type: 조문번호→주제명 방향으로만 출제 (range → topic)
+  - sort_game: SortableJS 라이브러리 사용 (CDN: sortablejs@1.15.0)
+
+worked:
+  - SortableJS 드래그앤드롭으로 순서 맞추기 구현
+  - 민법 4지선다: 오답 보기는 다른 섹션 주제에서 랜덤 추출
+  - 민법 주관식: 공백/쉼표/중점 제거 후 비교 (정규화 로직)
+
+failed: []
+
+next:
+  - Railway 배포 (git push)
+  - 시험 D-DAY에 2026년 1차/2차 시험 날짜 등록 (로그인: yangonebin)
+  - DB 마이그레이션 확인 (keywords 테이블 PRIMARY KEY 변경 여부)
+
+files:
+  created:
+    - toc.html
+  modified:
+    - index.html
+
+context:
+  site_url: https://cpla-production.up.railway.app
+  toc_subjects:
+    노동법: 14개 항목 (sort game)
+    민법: 24개 항목, 3섹션 (sort + 4지선다 + 주관식)
+    사보법: 6개 항목 (sort game)
+    경영학: 8개 항목 (sort game)
+  admin_user: yangonebin
+  previous_handoff: 2026-02-11_09-19_nomusa-planner-features.yaml

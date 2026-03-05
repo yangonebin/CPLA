@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내가 긴 수험생활을 남들보다 잘할 수 있는 이유</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1410;
+    --paper: #f5f0e8;
+    --gold: #b8860b;
+    --rust: #8b3a2a;
+    --muted: #7a6e62;
+    --river: #2d4a5e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Serif KR', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* 배경 강 물결 텍스처 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        -12deg,
+        transparent,
+        transparent 60px,
+        rgba(45,74,94,0.035) 60px,
+        rgba(45,74,94,0.035) 61px
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 40px 120px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 헤더 */
+  .header {
+    text-align: center;
+    margin-bottom: 70px;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.2s forwards;
+  }
+
+  .subtitle {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .title {
+    font-size: clamp(22px, 4vw, 32px);
+    font-weight: 900;
+    line-height: 1.4;
+    color: var(--ink);
+    word-break: keep-all;
+  }
+
+  .title-line {
+    display: block;
+  }
+
+  .divider {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--rust));
+    margin: 24px auto;
+  }
+
+  .header-quote {
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.8;
+  }
+
+  /* 카드 목록 */
+  .reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .reason {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 0 28px;
+    padding: 36px 0;
+    border-bottom: 1px solid rgba(26,20,16,0.1);
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .reason:first-child { border-top: 1px solid rgba(26,20,16,0.1); }
+
+  .reason.animate {
+    animation: fadeUp 0.7s ease forwards;
+  }
+
+  .num-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4px;
+  }
+
+  .num {
+    font-family: 'Playfair Display', serif;
+    font-size: 38px;
+    font-weight: 700;
+    color: rgba(26,20,16,0.08);
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+
+  .num-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+
+  .content-col {}
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+  }
+
+  .reason-title {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 10px;
+    word-break: keep-all;
+  }
+
+  .reason-body {
+    font-size: 13.5px;
+    line-height: 1.9;
+    color: var(--muted);
+    font-weight: 300;
+    word-break: keep-all;
+  }
+
+  /* 컬러 테마 per reason */
+  .r1 .num-dot { background: #c0392b; }
+  .r1 .tag { background: rgba(192,57,43,0.08); color: #c0392b; }
+  .r1 .reason-title em { color: #c0392b; font-style: normal; }
+
+  .r2 .num-dot { background: #2980b9; }
+  .r2 .tag { background: rgba(41,128,185,0.08); color: #2980b9; }
+  .r2 .reason-title em { color: #2980b9; font-style: normal; }
+
+  .r3 .num-dot { background: var(--gold); }
+  .r3 .tag { background: rgba(184,134,11,0.08); color: var(--gold); }
+  .r3 .reason-title em { color: var(--gold); font-style: normal; }
+
+  .r4 .num-dot { background: #27ae60; }
+  .r4 .tag { background: rgba(39,174,96,0.08); color: #27ae60; }
+  .r4 .reason-title em { color: #27ae60; font-style: normal; }
+
+  .r5 .num-dot { background: #8e44ad; }
+  .r5 .tag { background: rgba(142,68,173,0.08); color: #8e44ad; }
+  .r5 .reason-title em { color: #8e44ad; font-style: normal; }
+
+  .r6 .num-dot { background: #e67e22; }
+  .r6 .tag { background: rgba(230,126,34,0.08); color: #e67e22; }
+  .r6 .reason-title em { color: #e67e22; font-style: normal; }
+
+  .r7 .num-dot { background: var(--river); }
+  .r7 .tag { background: rgba(45,74,94,0.08); color: var(--river); }
+  .r7 .reason-title em { color: var(--river); font-style: normal; }
+
+  /* 마지막 강 섹션 */
+  .river-closing {
+    margin-top: 70px;
+    padding: 48px 40px;
+    background: var(--river);
+    color: rgba(245,240,232,0.9);
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.5s forwards;
+  }
+
+  .river-closing::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.03) 40px,
+      rgba(255,255,255,0.03) 41px
+    );
+  }
+
+  .river-label {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.5);
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .river-text {
+    font-size: 17px;
+    line-height: 1.9;
+    font-weight: 300;
+    position: relative;
+    word-break: keep-all;
+  }
+
+  .river-text strong {
+    font-weight: 700;
+    color: #f5f0e8;
+  }
+
+  .river-sig {
+    margin-top: 24px;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: rgba(245,240,232,0.4);
+    position: relative;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <p class="subtitle">A Personal Manifesto</p>
+    <h1 class="title">
+      <span class="title-line">내가 긴 수험생활을</span>
+      <span class="title-line">남들보다 잘할 수 있는 이유</span>
+    </h1>
+    <div class="divider"></div>
+    <p class="header-quote">
+      결심은 하루아침에 오지 않는다.<br>
+      그것은 수천 번의 하루가 쌓인 자리에서 온다.
+    </p>
+  </header>
+
+  <div class="reasons">
+
+    <div class="reason r1">
+      <div class="num-col">
+        <span class="num">01</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Strategy</span>
+        <p class="reason-title"><em>모든 대안을 탐색한 뒤 선택했다</em></p>
+        <p class="reason-body">
+          섣불리 뛰어든 것이 아니다. 가능한 모든 길을 직접 들여다보고,
+          비교하고, 되물었다. 그 끝에 '이게 제일 낫다'는 결론에 이른 것이다.
+          선택의 확신이 있는 사람은, 흔들리는 속도가 다르다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r2">
+      <div class="num-col">
+        <span class="num">02</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Intellect</span>
+        <p class="reason-title"><em>어려운 것을 이해하는 뇌가 있다</em></p>
+        <p class="reason-body">
+          AI 논문, 트랜스포머 아키텍처, 블록체인 컨센서스 메커니즘.
+          추상적이고 낯선 개념들을 스스로 소화해온 경험이 있다.
+          노무사 시험의 복잡한 법 체계가 두렵지 않은 이유다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r3">
+      <div class="num-col">
+        <span class="num">03</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Foundation</span>
+        <p class="reason-title"><em>법과 정치, 전교 1등의 기억</em></p>
+        <p class="reason-body">
+          수능 1등급, 전교 1등. 그 숫자보다 중요한 것은 증명된 기억이다.
+          '나는 이 분야를 잘한다'는 자기 서사가 있는 사람은
+          어두운 터널에서도 방향을 잃지 않는다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r4">
+      <div class="num-col">
+        <span class="num">04</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Resilience</span>
+        <p class="reason-title"><em>답답할 때, 명상으로 돌아온다</em></p>
+        <p class="reason-body">
+          수험은 지식 싸움이기 전에 마음 싸움이다.
+          무너지려 할 때 자신을 데려올 수 있는 도구가 있다는 것,
+          그것만으로도 남들보다 수십 일은 더 버틸 수 있다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r5">
+      <div class="num-col">
+        <span class="num">05</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Philosophy</span>
+        <p class="reason-title"><em>하루의 위대함을 안다, 충만주의</em></p>
+        <p class="reason-body">
+          장기 레이스를 이기는 사람은 먼 목표를 보는 사람이 아니라,
+          오늘 하루를 꽉 채우는 사람이다.
+          충만한 하루가 쌓이면 어느 날 목표지점에 서 있다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r6">
+      <div class="num-col">
+        <span class="num">06</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Curiosity</span>
+        <p class="reason-title"><em>공부법 자체가 흥미롭다</em></p>
+        <p class="reason-body">
+          어떻게 배울 것인가를 탐구하는 즐거움이 있다.
+          20년치 기출 노출 전략, 패턴 분석, 반복의 과학.
+          배움의 과정에서 설레는 사람은 지치는 속도가 다르다.
+        </p>
+      </div>
+    </div>
+
+    <div class="reason r7">
+      <div class="num-col">
+        <span class="num">07</span>
+        <span class="num-dot"></span>
+      </div>
+      <div class="content-col">
+        <span class="tag">Liberation</span>
+        <p class="reason-title"><em>남들보다 두렵지 않다.</em></p>
+        <p class="reason-body">
+          이 강이 아니어도, 나는 다른 강을 찾을 수 있다.<br>
+          그러니까 오늘은 이 강에 온전히 앉아있는다.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="river-closing">
+    <p class="river-label">Siddhartha & The River</p>
+    <p class="river-text">
+      <strong>노무사 시험은 나의 강이다.</strong><br><br>
+      싯다르타가 강가에서 깨달은 건 도착이 아니었다.<br>
+      오늘 여기 앉아있는 것, 그 자체였다.<br><br>
+      나는 어디서든 강을 찾을 수 있는 사람이다.<br>
+      늘 그래왔으니까.<br><br>
+      그러니 지금은, 이 강이다.<br>
+      오늘도, 여기 앉는다.
+    </p>
+    <p class="river-sig">— 긴 수험생활을 시작하며</p>
+  </div>
+
+</div>
+
+<script>
+  const reasons = document.querySelectorAll('.reason');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(reasons).indexOf(entry.target);
+        entry.target.style.animationDelay = `${idx * 0.1}s`;
+        entry.target.classList.add('animate');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  reasons.forEach(r => observer.observe(r));
+</script>
+</body>
+</html>
