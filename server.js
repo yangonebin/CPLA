@@ -308,6 +308,19 @@ app.get('/api/backup', (req, res) => {
     res.download(DB_PATH, 'checklist.db');
 });
 
+// Railway Volume 직접 백업 (임시)
+app.get('/api/backup-volume', (req, res) => {
+    if (req.session.user !== 'yangonebin') {
+        return res.status(403).send('로그인 필요');
+    }
+    const volumePath = '/data/checklist.db';
+    if (fs.existsSync(volumePath)) {
+        res.download(volumePath, 'checklist-volume.db');
+    } else {
+        res.status(404).send('Volume DB 없음. DB_PATH: ' + DB_PATH);
+    }
+});
+
 // DB 복구 업로드 (로그인 필요)
 const multer = require('multer');
 const upload = multer({ dest: '/tmp/' });
